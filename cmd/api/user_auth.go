@@ -1,0 +1,292 @@
+package api
+
+import (
+	"errors"
+	"fmt"
+	"math/rand"
+	"net/http"
+	"time"
+
+	"github.com/gin-gonic/gin"
+
+	"recall-app/cmd/dto"
+	"recall-app/internal/domain"
+	"recall-app/internal/repo"
+	"recall-app/internal/token"
+)
+
+var (
+	EmailResetScope = "email-reset"
+	EmailTemplate   = "reset-token.html"
+)
+
+func (app *Application) Test(c *gin.Context) {
+	value, _ := c.Get("authorization_payload")
+	c.JSON(http.StatusOK, value)
+	app.background(func() {
+		data := map[string]any{
+			"name":            "David",
+			"expiryDate":      "4 days",
+			"activationToken": "token.Plaintext"}
+
+		err := app.Mailer.Send("dolagookun@icloud.com", EmailTemplate, data)
+		if err != nil {
+			app.Logger.Error(err.Error(), nil)
+		}
+	})
+}
+
+func (app *Application) RegisterUserHandler(c *gin.Context) {
+	var req dto.RegisterUserRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		app.badResponse(c, err.Error())
+		return
+	}
+
+	user := &domain.User{
+		Name:    req.Name,
+		Phone:   req.Phone,
+		Email:   req.Email,
+		Country: req.Country,
+	}
+
+	err := user.Password.Set(req.Password)
+	if err != nil {
+		app.ServerErrorResponse(c, err)
+		return
+	}
+
+	err = app.Handlers.Users.Insert(user)
+	if err != nil {
+		switch {
+		case errors.Is(err, repo.ErrDuplicateEmail):
+			err = fmt.Errorf("a user with this email address: %s already exists", user.Email)
+			app.unAuthorizedResponse(c, err.Error())
+		default:
+			app.ServerErrorResponse(c, err)
+		}
+		return
+	}
+
+	accessToken, accessPayload, refreshToken, refreshPayload, err := getTokenDetails(app, user)
+
+	if err != nil {
+		app.ServerErrorResponse(c, err)
+		return
+	}
+
+	rsp := dto.RegisterUserResponse{
+		AccessToken:           accessToken,
+		AccessTokenExpiresAt:  accessPayload.ExpiredAt,
+		RefreshToken:          refreshToken,
+		RefreshTokenExpiresAt: refreshPayload.ExpiredAt,
+		User:                  user.NewUserResponse(),
+	}
+	c.JSON(http.StatusOK, rsp)
+
+}
+
+func (app *Application) LoginUser(c *gin.Context) {
+	var req dto.LoginUserRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		app.badResponse(c, err.Error())
+		return
+	}
+
+	user, err := app.Handlers.Users.GetByEmail(req.Email)
+	if err != nil {
+		if err == repo.ErrRecordNotFound {
+			app.invalidCredentialsResponse(c)
+			return
+		}
+		app.ServerErrorResponse(c, err)
+		return
+	}
+
+	match, err := user.Password.Matches(req.Password)
+	if err != nil {
+		app.ServerErrorResponse(c, err)
+		return
+	}
+	if !match {
+		app.invalidCredentialsResponse(c)
+		return
+	}
+
+	accessToken, accessPayload, refreshToken, refreshPayload, err := getTokenDetails(app, user)
+
+	if err != nil {
+		app.ServerErrorResponse(c, err)
+		return
+	}
+
+	rsp := dto.LoginUserResponse{
+		AccessToken:           accessToken,
+		AccessTokenExpiresAt:  accessPayload.ExpiredAt,
+		RefreshToken:          refreshToken,
+		RefreshTokenExpiresAt: refreshPayload.ExpiredAt,
+		User:                  user.NewUserResponse(),
+	}
+	c.JSON(http.StatusOK, rsp)
+}
+
+func (app *Application) InitiateChangeUserPasswordHandler(c *gin.Context) {
+	// Parse and validate the user's new password and password reset token.
+	var req struct {
+		Email string `json:"email"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		app.ServerErrorResponse(c, err)
+		return
+	}
+
+	//Validate Email
+
+	//Create token in token table
+
+	user, err := app.Handlers.Users.GetByEmail(req.Email)
+	if err != nil {
+		if err == repo.ErrRecordNotFound {
+			app.invalidCredentialsResponse(c)
+			return
+		}
+		app.ServerErrorResponse(c, err)
+		return
+	}
+
+	token := domain.Token{
+		UserID: user.ID,
+		Email:  req.Email,
+		Scope:  EmailResetScope,
+		Token:  generateNumericToken(),
+		Expiry: time.Now().Add(time.Hour * 24),
+	}
+	err = app.Handlers.Tokens.Insert(&token)
+	if err != nil {
+		if err == repo.ErrRecordNotFound {
+			app.invalidCredentialsResponse(c)
+			return
+		}
+		app.ServerErrorResponse(c, err)
+		return
+	}
+
+	//send to email service
+
+	app.background(func() {
+		data := map[string]any{
+			"name":            user.Name,
+			"expiryDate":      token.Expiry.Format("Monday, 02 January 2006 at 15:04"),
+			"activationToken": token.Token}
+
+		err := app.Mailer.Send("dolagookun@icloud.com", "reset-token.html", data)
+		// err := app.Mailer.Send(user.Email, "reset-token.html", data)
+		if err != nil {
+			app.Logger.Error(err.Error(), nil)
+		}
+	})
+
+	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("Token sent to user email: %s", user.Email)})
+
+}
+
+func (app *Application) ChangeUserPasswordHandler(c *gin.Context) {
+	// Parse and validate the user's new password and password reset token.
+	var req struct {
+		Email    string `json:"email"`
+		Token    string `json:"token"`
+		Password string `json:"password"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		app.ServerErrorResponse(c, err)
+		return
+	}
+
+	//Check token in token table
+	_, err := app.Handlers.Tokens.Get(req.Email, req.Token)
+	if err != nil {
+		if err == repo.ErrRecordNotFound {
+			app.badResponse(c, "Invalid Token")
+			return
+		}
+		app.ServerErrorResponse(c, err)
+		return
+	}
+
+	user, err := app.Handlers.Users.GetByEmail(req.Email)
+	if err != nil {
+		if err == repo.ErrRecordNotFound {
+			app.invalidCredentialsResponse(c)
+			return
+		}
+		app.ServerErrorResponse(c, err)
+		return
+	}
+
+	err = user.Password.Set(req.Password)
+	if err != nil {
+		app.ServerErrorResponse(c, err)
+		return
+	}
+	// Save the updated user record in our database, checking for any edit conflicts as // normal.
+	err = app.Handlers.Users.Update(user)
+	print(user.Password.Plaintext)
+	if err != nil {
+		switch {
+		case errors.Is(err, repo.ErrEditConflict):
+			app.editConflictResponse(c)
+		default:
+			app.ServerErrorResponse(c, err)
+		}
+		return
+	}
+
+	app.background(func() {
+		err = app.Handlers.Tokens.DeleteAllForUser(EmailResetScope, user.ID)
+		if err != nil {
+			app.ServerErrorResponse(c, err)
+			return
+		}
+	})
+
+	c.JSON(http.StatusOK, gin.H{"message": "Successfully changed your password"})
+}
+
+func getTokenDetails(app *Application, user *domain.User) (string, *token.Payload, string, *token.Payload, error) {
+
+	accessDuration, err := time.ParseDuration(app.Config.Token.AccessTokenDuration)
+	if err != nil {
+		accessDuration = time.Hour * 24
+	}
+
+	accessToken, accessPayload, err := app.TokenMaker.CreateToken(
+		user.ID,
+		accessDuration,
+	)
+	if err != nil {
+		return "", nil, "", nil, err
+	}
+
+	refreshDuration, err := time.ParseDuration(app.Config.Token.RefreshTokenDuration)
+	if err != nil {
+		refreshDuration = time.Hour * 168
+	}
+
+	refreshToken, refreshPayload, err := app.TokenMaker.CreateToken(
+		user.ID, refreshDuration,
+	)
+	if err != nil {
+		// app.ServerErrorResponse(c, err)
+		return "", nil, "", nil, err
+	}
+	return accessToken, accessPayload, refreshToken, refreshPayload, nil
+}
+
+func generateNumericToken() string {
+	rand.Seed(time.Now().UnixNano())
+	token := ""
+	for i := 0; i < 4; i++ {
+		token += fmt.Sprintf("%d", rand.Intn(10))
+	}
+	return token
+}
