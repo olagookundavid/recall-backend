@@ -70,6 +70,36 @@ func (m UserModel) GetByEmail(email string) (*domain.User, error) {
 	return &user, nil
 }
 
+func (m UserModel) GetById(id string) (*domain.User, error) {
+	query := ` SELECT id, created_at, name, country, phone, url, date_of_birth, email, password_hash, isAdmin, version FROM users 
+	WHERE id = $1`
+	var user domain.User
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	err := m.DB.QueryRow(ctx, query, id).Scan(
+		&user.ID,
+		&user.CreatedAt,
+		&user.Name,
+		&user.Country,
+		&user.Phone,
+		&user.Url,
+		&user.Dob,
+		&user.Email,
+		&user.Password.Hash,
+		&user.IsAdmin,
+		&user.Version)
+
+	if err != nil {
+		switch {
+		case errors.Is(err, pgx.ErrNoRows):
+			return nil, ErrRecordNotFound
+		default:
+			return nil, err
+		}
+	}
+	return &user, nil
+}
+
 func (m UserModel) Update(user *domain.User) error {
 	query := ` UPDATE users SET name = $1, email = $2, password_hash = $3, country = $4, phone = $5, date_of_birth = $6, 
 	url = $7, version = version + 1 WHERE id = $8 AND version = $9 RETURNING version;`

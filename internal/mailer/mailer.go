@@ -12,7 +12,7 @@ import (
 
 // this directive is important for embed
 //
-//go:embed "templates"
+//go:embed templates/*
 var templateFS embed.FS
 
 type Mailer struct {

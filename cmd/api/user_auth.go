@@ -18,6 +18,7 @@ import (
 var (
 	EmailResetScope = "email-reset"
 	EmailTemplate   = "reset-token.html"
+	layout          = "02-01-2006"
 )
 
 func (app *Application) Test(c *gin.Context) {
@@ -34,6 +35,99 @@ func (app *Application) Test(c *gin.Context) {
 			app.Logger.Error(err.Error(), nil)
 		}
 	})
+}
+
+func (app *Application) GetProfileHandler(c *gin.Context) {
+	payload, ok := c.Get(authorizationPayloadKey)
+	if !ok {
+		app.ServerErrorResponse(c, fmt.Errorf("authorization payload not retrieved successful"))
+	}
+	tokenPayload := payload.(*token.Payload)
+	user, err := app.Handlers.Users.GetById(tokenPayload.UserId)
+	if err != nil {
+		if err == repo.ErrRecordNotFound {
+			app.invalidCredentialsResponse(c)
+			return
+		}
+		app.ServerErrorResponse(c, err)
+		return
+	}
+
+	rsp := dto.ProfileResponse{
+		User: user.NewUserResponse(),
+	}
+	c.JSON(http.StatusOK, rsp)
+
+}
+
+func (app *Application) UpdateProfileHandler(c *gin.Context) {
+	payload, ok := c.Get(authorizationPayloadKey)
+	if !ok {
+		app.ServerErrorResponse(c, fmt.Errorf("authorization payload not retrieved successful"))
+	}
+	tokenPayload := payload.(*token.Payload)
+
+	// c.JSON(http.StatusOK, tokenPayload)
+	var req dto.ProfileRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		app.badResponse(c, err.Error())
+		return
+	}
+
+	//Get By userID
+	user, err := app.Handlers.Users.GetById(tokenPayload.UserId)
+	if err != nil {
+		if err == repo.ErrRecordNotFound {
+			app.invalidCredentialsResponse(c)
+			return
+		}
+		app.ServerErrorResponse(c, err)
+		return
+	}
+
+	if req.Name != nil {
+		user.Name = *req.Name
+	}
+	if req.Url != nil {
+		user.Url = *req.Url
+	}
+	if req.Country != nil {
+		user.Country = *req.Country
+	}
+	if req.Phone != nil {
+		user.Phone = *req.Phone
+	}
+	if req.Email != nil {
+		user.Email = *req.Email
+	}
+	if req.Dob != nil {
+		user.Dob, err = time.Parse(layout, *req.Dob)
+		if err != nil {
+			app.ServerErrorResponse(c, err)
+			return
+		}
+	}
+	if req.Password != nil {
+		err = user.Password.Set(*req.Password)
+		if err != nil {
+			app.ServerErrorResponse(c, err)
+			return
+		}
+	}
+
+	err = app.Handlers.Users.Update(user)
+	if err != nil {
+		switch {
+		case errors.Is(err, repo.ErrEditConflict):
+			app.editConflictResponse(c)
+		default:
+			app.ServerErrorResponse(c, err)
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Profile updated successfully"})
+
 }
 
 func (app *Application) RegisterUserHandler(c *gin.Context) {
@@ -125,7 +219,6 @@ func (app *Application) LoginUser(c *gin.Context) {
 		AccessTokenExpiresAt:  accessPayload.ExpiredAt,
 		RefreshToken:          refreshToken,
 		RefreshTokenExpiresAt: refreshPayload.ExpiredAt,
-		User:                  user.NewUserResponse(),
 	}
 	c.JSON(http.StatusOK, rsp)
 }
@@ -230,7 +323,6 @@ func (app *Application) ChangeUserPasswordHandler(c *gin.Context) {
 	}
 	// Save the updated user record in our database, checking for any edit conflicts as // normal.
 	err = app.Handlers.Users.Update(user)
-	print(user.Password.Plaintext)
 	if err != nil {
 		switch {
 		case errors.Is(err, repo.ErrEditConflict):
@@ -276,7 +368,6 @@ func getTokenDetails(app *Application, user *domain.User) (string, *token.Payloa
 		user.ID, refreshDuration,
 	)
 	if err != nil {
-		// app.ServerErrorResponse(c, err)
 		return "", nil, "", nil, err
 	}
 	return accessToken, accessPayload, refreshToken, refreshPayload, nil

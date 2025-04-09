@@ -11,8 +11,6 @@ import (
 	"recall-app/internal/token"
 	"sync"
 
-	_ "recall-app/cmd/main/docs"
-
 	"github.com/gin-gonic/gin"
 )
 

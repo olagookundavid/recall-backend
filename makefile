@@ -88,8 +88,12 @@ build/api:
 ## build/docker: build the docker application 
 build/docker: build/api
 	@echo 'Building docker...' 
-	docker build -t recallapp . 
+	docker build --platform linux/amd64 -t recall-king .
+	# docker build --platform linux/amd64 -t goliathoh/recall-king:latest .
+
+
 
 run/docker: build/docker
 	@echo 'Building docker...' 
-	docker run -e DB_URL=postgres://djjsagev:WG11sRXwe2q1C0I9-3XhTZywTnhbZQPJ@stampy.db.elephantsql.com/djjsagev itojuapp
+	# docker run -e DB_URL=postgres://djjsagev:WG11sRXwe2q1C0I9-3XhTZywTnhbZQPJ@stampy.db.elephantsql.com/djjsagev itojuapp
+	docker run -d --name recall-king-api --network recall-king-network -p 8080:8080 recall-king
