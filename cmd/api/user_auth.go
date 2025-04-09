@@ -54,7 +54,8 @@ func (app *Application) GetProfileHandler(c *gin.Context) {
 	}
 
 	rsp := dto.ProfileResponse{
-		User: user.NewUserResponse(),
+		Message: "User profile returned successfully",
+		User:    user.NewUserResponse(),
 	}
 	c.JSON(http.StatusOK, rsp)
 
@@ -170,6 +171,7 @@ func (app *Application) RegisterUserHandler(c *gin.Context) {
 	}
 
 	rsp := dto.RegisterUserResponse{
+		Message:               "User registered successfully",
 		AccessToken:           accessToken,
 		AccessTokenExpiresAt:  accessPayload.ExpiredAt,
 		RefreshToken:          refreshToken,
@@ -215,6 +217,7 @@ func (app *Application) LoginUser(c *gin.Context) {
 	}
 
 	rsp := dto.LoginUserResponse{
+		Message:               "User logged in successfully",
 		AccessToken:           accessToken,
 		AccessTokenExpiresAt:  accessPayload.ExpiredAt,
 		RefreshToken:          refreshToken,
@@ -272,8 +275,8 @@ func (app *Application) InitiateChangeUserPasswordHandler(c *gin.Context) {
 			"expiryDate":      token.Expiry.Format("Monday, 02 January 2006 at 15:04"),
 			"activationToken": token.Token}
 
-		err := app.Mailer.Send("dolagookun@icloud.com", "reset-token.html", data)
-		// err := app.Mailer.Send(user.Email, "reset-token.html", data)
+		// err := app.Mailer.Send("dolagookun@icloud.com", "reset-token.html", data)
+		err := app.Mailer.Send(user.Email, "reset-token.html", data)
 		if err != nil {
 			app.Logger.Error(err.Error(), nil)
 		}

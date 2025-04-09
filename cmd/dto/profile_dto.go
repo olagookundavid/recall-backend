@@ -15,5 +15,6 @@ type ProfileRequest struct {
 }
 
 type ProfileResponse struct {
-	User domain.UserResponse `json:"user"`
+	Message string              `json:"message"`
+	User    domain.UserResponse `json:"user"`
 }
