@@ -52,7 +52,7 @@ func NewLogger(opts Options) (*Logger, error) {
 	}
 
 	var zapConfig zap.Config
-	if !opts.IsProduction {
+	if opts.IsProduction {
 		zapConfig = zap.NewProductionConfig()
 		zapConfig.EncoderConfig = config
 	} else {

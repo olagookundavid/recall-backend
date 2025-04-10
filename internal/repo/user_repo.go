@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"recall-app/internal/domain"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -31,7 +32,7 @@ func (m UserModel) Insert(user *domain.User) error {
 	err := m.DB.QueryRow(ctx, query, args...).Scan(&user.ID, &user.CreatedAt, &user.Version)
 	if err != nil {
 		switch {
-		case err.Error() == `pq: duplicate key value violates unique constraint "users_email_key"`:
+		case strings.Contains(err.Error(), `duplicate key value violates unique constraint "users_email_key"`):
 			return ErrDuplicateEmail
 		default:
 			return err

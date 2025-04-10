@@ -65,6 +65,7 @@ func (app *Application) UpdateProfileHandler(c *gin.Context) {
 	payload, ok := c.Get(authorizationPayloadKey)
 	if !ok {
 		app.ServerErrorResponse(c, fmt.Errorf("authorization payload not retrieved successful"))
+		return
 	}
 	tokenPayload := payload.(*token.Payload)
 
@@ -103,13 +104,6 @@ func (app *Application) UpdateProfileHandler(c *gin.Context) {
 	}
 	if req.Dob != nil {
 		user.Dob, err = time.Parse(layout, *req.Dob)
-		if err != nil {
-			app.ServerErrorResponse(c, err)
-			return
-		}
-	}
-	if req.Password != nil {
-		err = user.Password.Set(*req.Password)
 		if err != nil {
 			app.ServerErrorResponse(c, err)
 			return
@@ -286,30 +280,24 @@ func (app *Application) InitiateChangeUserPasswordHandler(c *gin.Context) {
 
 }
 
-func (app *Application) ChangeUserPasswordHandler(c *gin.Context) {
-	// Parse and validate the user's new password and password reset token.
-	var req struct {
-		Email    string `json:"email"`
-		Token    string `json:"token"`
-		Password string `json:"password"`
-	}
+func (app *Application) UpdatePasswordHandler(c *gin.Context) {
+	var req dto.PasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		app.ServerErrorResponse(c, err)
 		return
 	}
 
-	//Check token in token table
-	_, err := app.Handlers.Tokens.Get(req.Email, req.Token)
+	if req.NewPassword != req.ConfirmPassword {
+		app.badResponse(c, "password doesn't match")
+		return
+	}
+	tokenPayload, err := getTokenPayloadFromContext(c)
 	if err != nil {
-		if err == repo.ErrRecordNotFound {
-			app.badResponse(c, "Invalid Token")
-			return
-		}
 		app.ServerErrorResponse(c, err)
 		return
 	}
 
-	user, err := app.Handlers.Users.GetByEmail(req.Email)
+	user, err := app.Handlers.Users.GetById(tokenPayload.UserId)
 	if err != nil {
 		if err == repo.ErrRecordNotFound {
 			app.invalidCredentialsResponse(c)
@@ -319,7 +307,17 @@ func (app *Application) ChangeUserPasswordHandler(c *gin.Context) {
 		return
 	}
 
-	err = user.Password.Set(req.Password)
+	match, err := user.Password.Matches(req.OldPassword)
+	if err != nil {
+		app.ServerErrorResponse(c, err)
+		return
+	}
+	if !match {
+		app.invalidCredentialsResponse(c)
+		return
+	}
+
+	err = user.Password.Set(req.NewPassword)
 	if err != nil {
 		app.ServerErrorResponse(c, err)
 		return
@@ -335,16 +333,70 @@ func (app *Application) ChangeUserPasswordHandler(c *gin.Context) {
 		}
 		return
 	}
+	c.JSON(http.StatusOK, gin.H{"message": "Successfully changed your password"})
+}
 
-	app.background(func() {
-		err = app.Handlers.Tokens.DeleteAllForUser(EmailResetScope, user.ID)
+func (app *Application) ResetPasswordHandler(c *gin.Context) {
+	tokenPayload, err := getTokenPayloadFromContext(c)
+	if err != nil {
+		app.ServerErrorResponse(c, err)
+		return
+	}
+
+	// c.JSON(http.StatusOK, tokenPayload)
+	var req dto.ProfileRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		app.badResponse(c, err.Error())
+		return
+	}
+
+	//Get By userID
+	user, err := app.Handlers.Users.GetById(tokenPayload.UserId)
+	if err != nil {
+		if err == repo.ErrRecordNotFound {
+			app.invalidCredentialsResponse(c)
+			return
+		}
+		app.ServerErrorResponse(c, err)
+		return
+	}
+
+	if req.Name != nil {
+		user.Name = *req.Name
+	}
+	if req.Url != nil {
+		user.Url = *req.Url
+	}
+	if req.Country != nil {
+		user.Country = *req.Country
+	}
+	if req.Phone != nil {
+		user.Phone = *req.Phone
+	}
+	if req.Email != nil {
+		user.Email = *req.Email
+	}
+	if req.Dob != nil {
+		user.Dob, err = time.Parse(layout, *req.Dob)
 		if err != nil {
 			app.ServerErrorResponse(c, err)
 			return
 		}
-	})
+	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Successfully changed your password"})
+	err = app.Handlers.Users.Update(user)
+	if err != nil {
+		switch {
+		case errors.Is(err, repo.ErrEditConflict):
+			app.editConflictResponse(c)
+		default:
+			app.ServerErrorResponse(c, err)
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Password successfully reset"})
+
 }
 
 func getTokenDetails(app *Application, user *domain.User) (string, *token.Payload, string, *token.Payload, error) {
@@ -383,4 +435,12 @@ func generateNumericToken() string {
 		token += fmt.Sprintf("%d", rand.Intn(10))
 	}
 	return token
+}
+
+func getTokenPayloadFromContext(c *gin.Context) (*token.Payload, error) {
+	payload, ok := c.Get(authorizationPayloadKey)
+	if !ok {
+		return nil, fmt.Errorf("authorization payload not retrieved successful")
+	}
+	return payload.(*token.Payload), nil
 }

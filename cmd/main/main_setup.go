@@ -60,6 +60,10 @@ func loadDbUrl(log *logger.Logger) string {
 	}
 	return dbUrl
 }
+func loadModeEnv() bool {
+	godotenv.Load()
+	return (os.Getenv("IS_PROD")) == "true"
+}
 
 func loadTokenDetails(log *logger.Logger) map[string]string {
 

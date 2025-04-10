@@ -15,15 +15,23 @@ import (
 )
 
 func main() {
-	gin.SetMode(gin.DebugMode)
 
+	mode := loadModeEnv()
+
+	var (
+		ginMode = gin.DebugMode
+	)
+	if mode {
+		ginMode = gin.ReleaseMode
+	}
+	gin.SetMode(ginMode)
 	//Check version and exit
 	displayVersion("version")
 
 	// Initialize logger
 	log := logger.GetLogger(logger.Options{
-		IsProduction: false,
-		AppName:      "Recall",
+		IsProduction: mode,
+		AppName:      "Recall-king",
 		Environment:  "dev",
 		TraceID:      "recall-app-id",
 	})

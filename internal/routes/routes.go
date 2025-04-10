@@ -36,9 +36,10 @@ func userRoutes(r *gin.RouterGroup, app *api.Application) {
 	user.POST("/login", app.LoginUser)
 	user.POST("/register", app.RegisterUserHandler)
 	user.POST("/getResetToken", app.InitiateChangeUserPasswordHandler)
-	user.POST("/resetPassword", app.ChangeUserPasswordHandler)
+	user.POST("/resetPassword", app.ResetPasswordHandler)
 	withAuth.POST("/profile", app.UpdateProfileHandler)
 	withAuth.GET("/profile", app.GetProfileHandler)
+	withAuth.POST("/changePassword", app.UpdatePasswordHandler)
 	// withAuth.POST("/test", app.Test)
 
 }
