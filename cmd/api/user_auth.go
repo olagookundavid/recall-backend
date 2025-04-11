@@ -237,7 +237,7 @@ func (app *Application) InitiateChangeUserPasswordHandler(c *gin.Context) {
 	user, err := app.Handlers.Users.GetByEmail(req.Email)
 	if err != nil {
 		if err == repo.ErrRecordNotFound {
-			app.invalidCredentialsResponse(c)
+			app.badResponse(c, "Email not found")
 			return
 		}
 		app.ServerErrorResponse(c, err)
@@ -337,21 +337,28 @@ func (app *Application) UpdatePasswordHandler(c *gin.Context) {
 }
 
 func (app *Application) ResetPasswordHandler(c *gin.Context) {
-	tokenPayload, err := getTokenPayloadFromContext(c)
-	if err != nil {
+	var req struct {
+		Email    string `json:"email"`
+		Token    string `json:"token"`
+		Password string `json:"password"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
 		app.ServerErrorResponse(c, err)
 		return
 	}
 
-	// c.JSON(http.StatusOK, tokenPayload)
-	var req dto.ProfileRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		app.badResponse(c, err.Error())
+	//Check token in token table
+	_, err := app.Handlers.Tokens.Get(req.Email, req.Token)
+	if err != nil {
+		if err == repo.ErrRecordNotFound {
+			app.badResponse(c, "Invalid Token")
+			return
+		}
+		app.ServerErrorResponse(c, err)
 		return
 	}
 
-	//Get By userID
-	user, err := app.Handlers.Users.GetById(tokenPayload.UserId)
+	user, err := app.Handlers.Users.GetByEmail(req.Email)
 	if err != nil {
 		if err == repo.ErrRecordNotFound {
 			app.invalidCredentialsResponse(c)
@@ -361,29 +368,12 @@ func (app *Application) ResetPasswordHandler(c *gin.Context) {
 		return
 	}
 
-	if req.Name != nil {
-		user.Name = *req.Name
+	err = user.Password.Set(req.Password)
+	if err != nil {
+		app.ServerErrorResponse(c, err)
+		return
 	}
-	if req.Url != nil {
-		user.Url = *req.Url
-	}
-	if req.Country != nil {
-		user.Country = *req.Country
-	}
-	if req.Phone != nil {
-		user.Phone = *req.Phone
-	}
-	if req.Email != nil {
-		user.Email = *req.Email
-	}
-	if req.Dob != nil {
-		user.Dob, err = time.Parse(layout, *req.Dob)
-		if err != nil {
-			app.ServerErrorResponse(c, err)
-			return
-		}
-	}
-
+	// Save the updated user record in our database, checking for any edit conflicts as // normal.
 	err = app.Handlers.Users.Update(user)
 	if err != nil {
 		switch {
@@ -395,8 +385,15 @@ func (app *Application) ResetPasswordHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Password successfully reset"})
+	app.background(func() {
+		err = app.Handlers.Tokens.DeleteAllForUser(EmailResetScope, user.ID)
+		if err != nil {
+			app.ServerErrorResponse(c, err)
+			return
+		}
+	})
 
+	c.JSON(http.StatusOK, gin.H{"message": "Successfully changed your password"})
 }
 
 func getTokenDetails(app *Application, user *domain.User) (string, *token.Payload, string, *token.Payload, error) {
