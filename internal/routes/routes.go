@@ -10,6 +10,7 @@ import (
 func Routes(app *api.Application) *gin.Engine {
 	r := gin.Default()
 
+	r.Use(gin.CustomRecovery(app.InternalServerErrorHandler))
 	r.NoRoute(app.NotFoundResponse)
 	r.NoMethod(app.MethodNotAllowedResponse)
 

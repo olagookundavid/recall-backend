@@ -36,7 +36,7 @@ db/psql:
 ## db/migrate/up: apply all up database migrations
 db/migrate/up:
 	echo 'Running up migrations...'
-	@cd internal/sql/migrations/ && goose postgres postgres://itojudb:itojudb@localhost/itojudb up && goose postgres postgres://koyeb-adm:rcHo1Ck7BYmf@ep-tiny-mode-a2d0vyca.eu-central-1.pg.koyeb.app/Itoju-ky up && goose postgres postgres://djjsagev:WG11sRXwe2q1C0I9-3XhTZywTnhbZQPJ@stampy.db.elephantsql.com/djjsagev up
+	@cd internal/sql/migrations/ && goose postgres postgresql://neondb_owner:npg_zAakPHhWLv76@ep-square-hat-a2jbuz1z-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require up
 
 db/migrate/upt:
 	echo 'Running up migrations...'
@@ -47,10 +47,9 @@ db/migrate/downt:
 	@cd internal/sql/migrations/ && goose postgres postgres://role:password@localhost:5432/recall_king?sslmode=disable down
 
 ## db/migrate/down: apply all down database migrations
-.PHONY: db/migrate/down
 db/migrate/down:
 	@echo 'Running down migrations...'
-	@cd internal/sql/migrations/ && goose postgres postgres://role:password@localhost:5432/recall_king?sslmode=disable down
+	@cd internal/sql/migrations/ && goose postgres postgresql://neondb_owner:npg_zAakPHhWLv76@ep-square-hat-a2jbuz1z-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require down
 
 # ==================================================================================== # 
 # QUALITY CONTROL 
@@ -95,5 +94,5 @@ build/docker: build/api
 
 run/docker: build/docker
 	@echo 'Building docker...' 
-	# docker run -e DB_URL=postgres://djjsagev:WG11sRXwe2q1C0I9-3XhTZywTnhbZQPJ@stampy.db.elephantsql.com/djjsagev itojuapp
+	# docker run -e DB_URL=
 	docker run -d --name recall-king-api --network recall-king-network -p 8080:8080 recall-king

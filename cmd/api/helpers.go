@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"recall-app/internal/vcs"
@@ -35,6 +36,20 @@ func (app *Application) HealthcheckHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, env)
 
 }
+
+func (app *Application) InternalServerErrorHandler(c *gin.Context, recovered any) {
+	var errMessage string
+
+	// If the recovered value is a string, treat it as an error message.
+	if err, ok := recovered.(string); ok {
+		errMessage = err
+	} else {
+		errMessage = "unknown error"
+	}
+	devErr := errors.New(errMessage)
+	app.ServerErrorResponse(c, devErr)
+}
+
 func (app *Application) NotFoundResponse(c *gin.Context) {
 	c.JSON(http.StatusNotFound, gin.H{"error": "Resource not found"})
 }

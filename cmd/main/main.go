@@ -18,13 +18,9 @@ func main() {
 
 	mode := loadModeEnv()
 
-	var (
-		ginMode = gin.DebugMode
-	)
 	if mode {
-		ginMode = gin.ReleaseMode
+		gin.SetMode(gin.ReleaseMode)
 	}
-	gin.SetMode(ginMode)
 	//Check version and exit
 	displayVersion("version")
 
