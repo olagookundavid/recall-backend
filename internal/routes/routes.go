@@ -52,7 +52,7 @@ func ProductRoutes(r *gin.RouterGroup, app *api.Application) {
 	withAuth.GET("/getQrProduct", app.GetProductFromQR)
 	//Tracked
 	withAuth.POST("/", app.CreateProductHandler)
-	withAuth.GET("/", app.GetProductFromQR)
+	withAuth.GET("/", app.GetProductHandler)
 	withAuth.DELETE("/:id", app.DeleteProductHandler)
 
 	//Recalls

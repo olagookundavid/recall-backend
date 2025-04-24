@@ -90,6 +90,26 @@ func (app *Application) CreateProductHandler(c *gin.Context) {
 
 }
 
+func (app *Application) GetProductHandler(c *gin.Context) {
+
+	tokenPayload, err := getTokenPayloadFromContext(c)
+	if err != nil {
+		app.ServerErrorResponse(c, err)
+		return
+	}
+
+	products, err := app.Handlers.Products.GetProducts(tokenPayload.UserId)
+	if err != nil {
+		app.ServerErrorResponse(c, err)
+		return
+	}
+
+	rsp := dto.ConvertToProductResponse(products)
+
+	c.JSON(http.StatusOK, gin.H{"data": rsp})
+
+}
+
 func (app *Application) DeleteProductHandler(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {

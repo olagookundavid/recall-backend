@@ -27,7 +27,7 @@ func (m ProductModel) Insert(product *domain.Product) error {
 	return nil
 }
 
-func (m ProductModel) GetProducts(user_id string) (*domain.Product, error) {
+func (m ProductModel) GetProduct(user_id string) (*domain.Product, error) {
 	query := ` SELECT id, user_id, name, company_name, store_name, country,  category, phone, url, date_purchased FROM tracked_product
 	WHERE user_id = $1`
 	var product domain.Product
@@ -54,6 +54,47 @@ func (m ProductModel) GetProducts(user_id string) (*domain.Product, error) {
 		}
 	}
 	return &product, nil
+}
+
+// query := ` SELECT conditions.id , conditions.name FROM Conditions
+// 	JOIN user_conditions ON conditions.id = user_conditions.conditions_id
+// 	WHERE user_conditions.user_id = $1; `
+
+func (m ProductModel) GetProducts(user_id string) ([]*domain.Product, error) {
+
+	query := `SELECT id, user_id, name, company_name, store_name, country,  category, phone, url, date_purchased FROM tracked_product
+	WHERE user_id = $1; `
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	rows, err := m.DB.Query(ctx, query, user_id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	products := []*domain.Product{}
+	for rows.Next() {
+		var product domain.Product
+		err := rows.Scan(
+			&product.Id,
+			&product.UserId,
+			&product.Name,
+			&product.Company,
+			&product.Store,
+			&product.Country,
+			&product.Category,
+			&product.Phone,
+			&product.Url,
+			&product.Date)
+
+		if err != nil {
+			return nil, err
+		}
+		products = append(products, &product)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	return products, nil
 }
 
 func (m ProductModel) DeleteProduct(id, userID string) error {
