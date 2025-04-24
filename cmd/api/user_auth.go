@@ -17,30 +17,28 @@ import (
 
 var (
 	EmailResetScope = "email-reset"
-	EmailTemplate   = "reset-token.html"
 	layout          = "02-01-2006"
 )
 
 func (app *Application) Test(c *gin.Context) {
-	value, _ := c.Get("authorization_payload")
-	c.JSON(http.StatusOK, value)
-	app.background(func() {
-		data := map[string]any{
-			"name":            "David",
-			"expiryDate":      "4 days",
-			"activationToken": "token.Plaintext"}
+	// app.background(func() {
+	// 	data := map[string]any{
+	// 		"name":            "David",
+	// 		"expiryDate":      "4 days",
+	// 		"activationToken": "token.Plaintext"}
 
-		err := app.Mailer.Send("dolagookun@icloud.com", EmailTemplate, data)
-		if err != nil {
-			app.Logger.Error(err.Error(), nil)
-		}
-	})
+	// 	err := app.Mailer.Send("dolagookun@icloud.com", EmailTemplate, data)
+	// 	if err != nil {
+	// 		app.Logger.Error(err.Error(), nil)
+	// 	}
+	// })
 }
 
 func (app *Application) GetProfileHandler(c *gin.Context) {
 	payload, ok := c.Get(authorizationPayloadKey)
 	if !ok {
 		app.ServerErrorResponse(c, fmt.Errorf("authorization payload not retrieved successful"))
+		return
 	}
 	tokenPayload := payload.(*token.Payload)
 	user, err := app.Handlers.Users.GetById(tokenPayload.UserId)
@@ -157,7 +155,7 @@ func (app *Application) RegisterUserHandler(c *gin.Context) {
 		return
 	}
 
-	accessToken, accessPayload, refreshToken, refreshPayload, err := getTokenDetails(app, user)
+	accessToken, accessPayload, err := getTokenDetails(app, user)
 
 	if err != nil {
 		app.ServerErrorResponse(c, err)
@@ -165,12 +163,12 @@ func (app *Application) RegisterUserHandler(c *gin.Context) {
 	}
 
 	rsp := dto.RegisterUserResponse{
-		Message:               "User registered successfully",
-		AccessToken:           accessToken,
-		AccessTokenExpiresAt:  accessPayload.ExpiredAt,
-		RefreshToken:          refreshToken,
-		RefreshTokenExpiresAt: refreshPayload.ExpiredAt,
-		User:                  user.NewUserResponse(),
+		Message:              "User registered successfully",
+		AccessToken:          accessToken,
+		AccessTokenExpiresAt: accessPayload.ExpiredAt,
+		// RefreshToken:          refreshToken,
+		// RefreshTokenExpiresAt: refreshPayload.ExpiredAt,
+		User: user.NewUserResponse(),
 	}
 	c.JSON(http.StatusOK, rsp)
 
@@ -203,7 +201,7 @@ func (app *Application) LoginUser(c *gin.Context) {
 		return
 	}
 
-	accessToken, accessPayload, refreshToken, refreshPayload, err := getTokenDetails(app, user)
+	accessToken, accessPayload, err := getTokenDetails(app, user)
 
 	if err != nil {
 		app.ServerErrorResponse(c, err)
@@ -211,11 +209,11 @@ func (app *Application) LoginUser(c *gin.Context) {
 	}
 
 	rsp := dto.LoginUserResponse{
-		Message:               "User logged in successfully",
-		AccessToken:           accessToken,
-		AccessTokenExpiresAt:  accessPayload.ExpiredAt,
-		RefreshToken:          refreshToken,
-		RefreshTokenExpiresAt: refreshPayload.ExpiredAt,
+		Message:              "User logged in successfully",
+		AccessToken:          accessToken,
+		AccessTokenExpiresAt: accessPayload.ExpiredAt,
+		// RefreshToken:          refreshToken,
+		// RefreshTokenExpiresAt: refreshPayload.ExpiredAt,
 	}
 	c.JSON(http.StatusOK, rsp)
 }
@@ -396,7 +394,7 @@ func (app *Application) ResetPasswordHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Successfully changed your password"})
 }
 
-func getTokenDetails(app *Application, user *domain.User) (string, *token.Payload, string, *token.Payload, error) {
+func getTokenDetails(app *Application, user *domain.User) (string, *token.Payload, error) {
 
 	accessDuration, err := time.ParseDuration(app.Config.Token.AccessTokenDuration)
 	if err != nil {
@@ -408,21 +406,21 @@ func getTokenDetails(app *Application, user *domain.User) (string, *token.Payloa
 		accessDuration,
 	)
 	if err != nil {
-		return "", nil, "", nil, err
+		return "", nil, err
 	}
 
-	refreshDuration, err := time.ParseDuration(app.Config.Token.RefreshTokenDuration)
-	if err != nil {
-		refreshDuration = time.Hour * 168
-	}
+	// refreshDuration, err := time.ParseDuration(app.Config.Token.RefreshTokenDuration)
+	// if err != nil {
+	// 	refreshDuration = time.Hour * 168
+	// }
 
-	refreshToken, refreshPayload, err := app.TokenMaker.CreateToken(
-		user.ID, refreshDuration,
-	)
-	if err != nil {
-		return "", nil, "", nil, err
-	}
-	return accessToken, accessPayload, refreshToken, refreshPayload, nil
+	// refreshToken, refreshPayload, err := app.TokenMaker.CreateToken(
+	// 	user.ID, refreshDuration,
+	// )
+	// if err != nil {
+	// 	return "", nil, err
+	// }
+	return accessToken, accessPayload, nil
 }
 
 func generateNumericToken() string {

@@ -24,13 +24,13 @@ func Routes(app *api.Application) *gin.Engine {
 	// test := r.Group("/")
 	// test.GET("/healthcheck", app.HealthcheckHandler)
 	// Register subroutes
-	userRoutes(v1_api, app)
-	secondRoutes(v1_api, app)
+	UserRoutes(v1_api, app)
+	ProductRoutes(v1_api, app)
 
 	return r
 }
 
-func userRoutes(r *gin.RouterGroup, app *api.Application) {
+func UserRoutes(r *gin.RouterGroup, app *api.Application) {
 	user := r.Group("/user")
 	withAuth := user.Group("/", app.TokenMiddleware(app.TokenMaker))
 
@@ -41,12 +41,22 @@ func userRoutes(r *gin.RouterGroup, app *api.Application) {
 	withAuth.POST("/profile", app.UpdateProfileHandler)
 	withAuth.GET("/profile", app.GetProfileHandler)
 	withAuth.POST("/changePassword", app.UpdatePasswordHandler)
-	// withAuth.POST("/test", app.Test)
+	withAuth.POST("/test", app.Test)
 
 }
 
-func secondRoutes(r *gin.RouterGroup, app *api.Application) {
-	//  := r.Group("/")
-	// withAuth := .Group("/", app.TokenMiddleware(app.TokenMaker))
+func ProductRoutes(r *gin.RouterGroup, app *api.Application) {
+	product := r.Group("/product")
+	withAuth := product.Group("/", app.TokenMiddleware(app.TokenMaker))
 
+	withAuth.GET("/getQrProduct", app.GetProductFromQR)
+	//Tracked
+	withAuth.POST("/", app.CreateProductHandler)
+	withAuth.GET("/", app.GetProductFromQR)
+	withAuth.DELETE("/:id", app.DeleteProductHandler)
+
+	//Recalls
+	// withAuth.POST("/C", app.CreateProductHandler)
+	// withAuth.GET("/product", app.GetProductFromQR)
+	// withAuth.DELETE("/product/:id", app.DeleteProductHandler)
 }

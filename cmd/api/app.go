@@ -39,11 +39,11 @@ type Config struct {
 	Cors struct {
 		TrustedOrigins []string
 	}
-	smtp struct {
-		host     string
-		port     int
-		username string
-		password string
-		sender   string
+	Smtp struct {
+		Host     string
+		Port     int
+		Username string
+		Password string
+		Sender   string
 	}
 }

@@ -17,7 +17,6 @@ import (
 func main() {
 
 	mode := loadModeEnv()
-
 	if mode {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -35,8 +34,9 @@ func main() {
 
 	dbUrl := loadDbUrl(log)
 	tokenDeets := loadTokenDetails(log)
+	smtpDeets := loadSmtpDetails(log)
 
-	cfg := flagSetup(dbUrl, tokenDeets)
+	cfg := flagSetup(dbUrl, tokenDeets, smtpDeets)
 
 	ctx := context.Background()
 	pool, err := openDB(*cfg, ctx)
@@ -59,18 +59,42 @@ func main() {
 		Logger:     log,
 		TokenMaker: tokenMaker,
 		Mailer: mailer.New(
-			"smtp.gmail.com",
-			587,
-			"erijesudo@gmail.com",
-			"whpemugxjgmincph",
-			"erijesudo@gmail.com",
+			cfg.Smtp.Host,
+			cfg.Smtp.Port,
+			cfg.Smtp.Username,
+			cfg.Smtp.Password,
+			cfg.Smtp.Sender,
 		),
 		Handlers: handlers.NewHandlers(pool),
 	}
+	cronjobs(log, app)
 
 	err = server.Serve(app)
 	if err != nil {
 		log.Fatal(err.Error(), nil)
 	}
-	print("nil error")
 }
+
+/*
+for recall keeps-
+
+CREATE TABLE user_notifications (
+    id SERIAL PRIMARY KEY,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    recall_id INT REFERENCES recalls(id) ON DELETE CASCADE,
+    notified_at TIMESTAMP DEFAULT NOW(),
+
+    UNIQUE (user_id, recall_id)
+);
+
+
+CREATE TABLE recall_sync_state (
+    product_type TEXT PRIMARY KEY,
+    last_synced_date DATE NOT NULL
+);
+
+INSERT INTO recall_sync_state (product_type, last_synced_date)
+VALUES ('food', '2024-01-01')
+ON CONFLICT (product_type) DO NOTHING;
+
+*/

@@ -7,14 +7,18 @@ import (
 )
 
 type Handlers struct {
-	Users  repo.UserModel
-	Tokens repo.TokenModel
+	Users    repo.UserModel
+	Tokens   repo.TokenModel
+	Fda      repo.SyncModel
+	Products repo.ProductModel
+	Recalls  repo.RecallsModel
 }
 
 func NewHandlers(db *pgxpool.Pool) Handlers {
 	return Handlers{
-
-		Users:  repo.UserModel{DB: db},
-		Tokens: repo.TokenModel{DB: db},
+		Products: repo.ProductModel{DB: db},
+		Recalls:  repo.RecallsModel{DB: db},
+		Users:    repo.UserModel{DB: db},
+		Tokens:   repo.TokenModel{DB: db},
 	}
 }

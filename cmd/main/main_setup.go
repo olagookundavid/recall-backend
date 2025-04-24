@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"strconv"
 	"time"
 
 	"recall-app/internal/logger"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
+	"github.com/robfig/cron"
 )
 
 var (
@@ -52,14 +54,13 @@ func displayVersion(flagStr string) {
 func loadDbUrl(log *logger.Logger) string {
 	godotenv.Load()
 	dbUrl := os.Getenv("DB_URL")
-	// os.Setenv("DB_URL", "postgres://itojudb:itojudb@localhost/itojudb?sslmode=disable")
-	// dbUrl := os.Getenv("DB_URL")
 
 	if dbUrl == "" {
 		log.Fatal("DB_URL env variable missing", nil)
 	}
 	return dbUrl
 }
+
 func loadModeEnv() bool {
 	godotenv.Load()
 	return (os.Getenv("IS_PROD")) == "true"
@@ -83,7 +84,29 @@ func loadTokenDetails(log *logger.Logger) map[string]string {
 	return tokenMap
 }
 
-func flagSetup(dbUrl string, tokenDeets map[string]string) *api.Config {
+func loadSmtpDetails(log *logger.Logger) map[string]string {
+
+	godotenv.Load()
+	smtpHost := os.Getenv("SMTP_HOST")
+	smtpPort := os.Getenv("SMTP_PORT")
+	smtpUsername := os.Getenv("SMTP_USERNAME")
+	smtpPassword := os.Getenv("SMTP_PASSWORD")
+	smtpSender := os.Getenv("SMTP_SENDER")
+
+	if smtpHost == "" || smtpPort == "" || smtpUsername == "" || smtpPassword == "" || smtpSender == "" {
+		log.Fatal("Couldn't load smtp details", nil)
+	}
+	smtpMap := map[string]string{
+		"smtp_host":     smtpHost,
+		"smtp_port":     smtpPort,
+		"smtp_username": smtpUsername,
+		"smtp_password": smtpPassword,
+		"smtp_sender":   smtpSender,
+	}
+	return smtpMap
+}
+
+func flagSetup(dbUrl string, tokenDeets map[string]string, smtpDeets map[string]string) *api.Config {
 
 	var cfg api.Config
 
@@ -98,8 +121,36 @@ func flagSetup(dbUrl string, tokenDeets map[string]string) *api.Config {
 
 	//tokenDeets
 	flag.StringVar(&cfg.Token.TokenKey, "token-key", tokenDeets["token_key"], "Token Key")
-	flag.StringVar(&cfg.Token.AccessTokenDuration, "access-token-duration", tokenDeets["token_key"], "Access Token Duration")
-	flag.StringVar(&cfg.Token.RefreshTokenDuration, "refresh-token-duration", tokenDeets["token_key"], "Refresh Token Duration")
+	flag.StringVar(&cfg.Token.AccessTokenDuration, "access-token-duration", tokenDeets["access_token_duration"], "Access Token Duration")
+	flag.StringVar(&cfg.Token.RefreshTokenDuration, "refresh-token-duration", tokenDeets["refresh_token_duration"], "Refresh Token Duration")
 
+	//smpt
+	port, _ := strconv.Atoi(smtpDeets["smtp_port"])
+	flag.StringVar(&cfg.Smtp.Host, "smtp-host", smtpDeets["smtp_host"], "SMTP host")
+	flag.IntVar(&cfg.Smtp.Port, "smtp-port", port, "SMTP port")
+	flag.StringVar(&cfg.Smtp.Username, "smtp-username", smtpDeets["smtp_username"], "SMTP username")
+	flag.StringVar(&cfg.Smtp.Password, "smtp-password", smtpDeets["smtp_password"], "SMTP password")
+	flag.StringVar(&cfg.Smtp.Sender, "smtp-sender", smtpDeets["smtp_sender"], "SMTP sender")
 	return &cfg
+}
+
+func cronjobs(log *logger.Logger, app *api.Application) {
+	c := cron.New()
+
+	// Run every day at 2 AM
+	c.AddFunc("0 2 * * *", func() {
+		log.Info("Running FDA recall sync...", nil)
+		// err := sync.RunSync(app)
+		// if err != nil {
+		// 	log.Error(fmt.Sprintf("Sync failed: %v", err), nil)
+		// }
+	})
+
+	log.Info("Starting scheduler...", nil)
+	c.Start()
+
+	// err := sync.RunSync(app)
+	// if err != nil {
+	// 	log.Error(fmt.Sprintf("Sync failed: %v", err), nil)
+	// }
 }
