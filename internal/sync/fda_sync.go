@@ -5,16 +5,20 @@ import (
 )
 
 func RunSync(app *api.Application) error {
-	lastDate, err := app.Handlers.Fda.GetLastSyncedDate("food")
-	if err != nil {
-		return err
-	}
+	///Get last date
+	// lastDate, err := app.Handlers.Fda.GetLastSyncedDate("food")
+	// if err != nil {
+	// 	return err
+	// }
 
-	latestSeen, err := app.Handlers.Fda.FetchAndStoreRecallsSince(lastDate)
-	if err != nil {
-		return err
-	}
-	print(latestSeen.GoString())
+	///Idea here is to grab each tracked product, then incrementally call fda function, it handles the rest, the function uses goroutines btw
+	// latestSeen, err := app.Handlers.Sync.FetchAndStoreRecallsSince(lastDate)
+	// if err != nil {
+	// 	return err
+	// }
+
+	///update last date
+	// print(latestSeen.GoString())
 
 	return nil
 }

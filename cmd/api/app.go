@@ -6,15 +6,18 @@ import (
 	"recall-app/internal/mailer"
 	"recall-app/internal/token"
 	"sync"
+
+	"firebase.google.com/go/v4/messaging"
 )
 
 type Application struct {
-	Handlers   handlers.Handlers
-	Config     Config
-	Logger     *logger.Logger
-	Wg         sync.WaitGroup
-	Mailer     mailer.Mailer
-	TokenMaker token.Maker
+	Handlers        handlers.Handlers
+	Config          Config
+	Logger          *logger.Logger
+	Wg              sync.WaitGroup
+	Mailer          mailer.Mailer
+	TokenMaker      token.Maker
+	MessagingClient *messaging.Client
 }
 
 type Config struct {

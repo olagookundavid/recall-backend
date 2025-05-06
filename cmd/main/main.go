@@ -53,11 +53,17 @@ func main() {
 		log.Fatal(fmt.Errorf("cannot create token maker: %w", err).Error(), nil)
 	}
 
+	fcmClient, err := FirebaseInit(ctx)
+	if err != nil {
+		log.Fatal(fmt.Errorf("cannot firebase client: %w", err).Error(), nil)
+	}
+
 	app := &api.Application{
-		Wg:         sync.WaitGroup{},
-		Config:     *cfg,
-		Logger:     log,
-		TokenMaker: tokenMaker,
+		Wg:              sync.WaitGroup{},
+		Config:          *cfg,
+		Logger:          log,
+		TokenMaker:      tokenMaker,
+		MessagingClient: fcmClient,
 		Mailer: mailer.New(
 			cfg.Smtp.Host,
 			cfg.Smtp.Port,
@@ -67,34 +73,10 @@ func main() {
 		),
 		Handlers: handlers.NewHandlers(pool),
 	}
-	cronjobs(log, app)
+	cronjobs(app)
 
 	err = server.Serve(app)
 	if err != nil {
 		log.Fatal(err.Error(), nil)
 	}
 }
-
-/*
-for recall keeps-
-
-CREATE TABLE user_notifications (
-    id SERIAL PRIMARY KEY,
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    recall_id INT REFERENCES recalls(id) ON DELETE CASCADE,
-    notified_at TIMESTAMP DEFAULT NOW(),
-
-    UNIQUE (user_id, recall_id)
-);
-
-
-CREATE TABLE recall_sync_state (
-    product_type TEXT PRIMARY KEY,
-    last_synced_date DATE NOT NULL
-);
-
-INSERT INTO recall_sync_state (product_type, last_synced_date)
-VALUES ('food', '2024-01-01')
-ON CONFLICT (product_type) DO NOTHING;
-
-*/

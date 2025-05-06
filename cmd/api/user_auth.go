@@ -401,10 +401,7 @@ func getTokenDetails(app *Application, user *domain.User) (string, *token.Payloa
 		accessDuration = time.Hour * 24
 	}
 
-	accessToken, accessPayload, err := app.TokenMaker.CreateToken(
-		user.ID,
-		accessDuration,
-	)
+	accessToken, accessPayload, err := app.TokenMaker.CreateToken(user.ID, accessDuration)
 	if err != nil {
 		return "", nil, err
 	}
@@ -424,6 +421,7 @@ func getTokenDetails(app *Application, user *domain.User) (string, *token.Payloa
 }
 
 func generateNumericToken() string {
+
 	rand.Seed(time.Now().UnixNano())
 	token := ""
 	for i := 0; i < 4; i++ {

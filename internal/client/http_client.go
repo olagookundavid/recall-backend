@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"recall-app/internal/logger"
 	"time"
 )
 
@@ -30,17 +31,22 @@ func NewClient(baseURL string) *Client {
 }
 
 func (c *Client) Do(ctx context.Context, method, path string, reqBody, respBody any, headers map[string]string) error {
+	log := logger.GetLogger(logger.Options{})
 	var body io.Reader
 	if reqBody != nil {
 		b, err := json.Marshal(reqBody)
 		if err != nil {
+			log.Error(err.Error(), nil)
 			return fmt.Errorf("marshal request: %w", err)
 		}
 		body = bytes.NewBuffer(b)
 	}
 
+	println(method, c.BaseURL+path, body)
+
 	req, err := http.NewRequestWithContext(ctx, method, c.BaseURL+path, body)
 	if err != nil {
+		log.Error(err.Error(), nil)
 		return fmt.Errorf("create request: %v", err)
 	}
 
@@ -51,12 +57,14 @@ func (c *Client) Do(ctx context.Context, method, path string, reqBody, respBody 
 
 	res, err := c.HTTPClient.Do(req)
 	if err != nil {
+		log.Error(err.Error(), nil)
 		return fmt.Errorf("do request: %w", err)
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode >= 400 {
 		b, _ := io.ReadAll(res.Body)
+		log.Error(res.Status, nil)
 		return fmt.Errorf("request failed [%d]: %s", res.StatusCode, string(b))
 	}
 

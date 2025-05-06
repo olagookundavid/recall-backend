@@ -29,21 +29,6 @@ type ProductResponse struct {
 	Url      string    `json:"url"`
 }
 
-// type ProductResponse struct {
-// 	Data []struct {
-// 		Id       string    `json:"id"`
-// 		UserId   string    `json:"user_id"`
-// 		Name     string    `json:"name"`
-// 		Store    string    `json:"store"`
-// 		Company  string    `json:"company"`
-// 		Date     time.Time `json:"date"`
-// 		Country  string    `json:"country"`
-// 		Category string    `json:"category"`
-// 		Phone    string    `json:"phone"`
-// 		Url      string    `json:"url"`
-// 	} `json:"data"`
-// }
-
 func ConvertToProductResponse(products []*domain.Product) []*ProductResponse {
 	respProduct := make([]*ProductResponse, 0, len(products))
 

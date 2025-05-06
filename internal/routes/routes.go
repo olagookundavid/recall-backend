@@ -26,6 +26,8 @@ func Routes(app *api.Application) *gin.Engine {
 	// Register subroutes
 	UserRoutes(v1_api, app)
 	ProductRoutes(v1_api, app)
+	RecallRoutes(v1_api, app)
+	NotifyRoutes(v1_api, app)
 
 	return r
 }
@@ -56,7 +58,30 @@ func ProductRoutes(r *gin.RouterGroup, app *api.Application) {
 	withAuth.DELETE("/:id", app.DeleteProductHandler)
 
 	//Recalls
-	// withAuth.POST("/C", app.CreateProductHandler)
-	// withAuth.GET("/product", app.GetProductFromQR)
-	// withAuth.DELETE("/product/:id", app.DeleteProductHandler)
+	// withAuth.GET("/fda", app.GetProductFromFda)
+}
+
+func RecallRoutes(r *gin.RouterGroup, app *api.Application) {
+	recall := r.Group("/recall")
+	withAuth := recall.Group("/", app.TokenMiddleware(app.TokenMaker))
+
+	//Tracked
+	withAuth.POST("/", app.CreateRecallHandler)
+	withAuth.GET("/", app.GetRecallHandler)
+	withAuth.DELETE("/:id", app.DeleteRecallHandler)
+
+	withAuth.GET("/possibleRecalls", app.GetPotRecallHandler)
+
+}
+
+func NotifyRoutes(r *gin.RouterGroup, app *api.Application) {
+	notify := r.Group("/notification")
+	withAuth := notify.Group("/", app.TokenMiddleware(app.TokenMaker))
+
+	//Tracked
+	withAuth.POST("/", app.CreateNotificationHandler)
+	withAuth.PUT("/", app.CreateNotificationHandler)
+	withAuth.GET("/", app.GetNotificationHandler)
+	withAuth.DELETE("/", app.DeleteNotificationHandler)
+
 }

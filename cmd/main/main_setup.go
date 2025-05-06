@@ -15,9 +15,12 @@ import (
 
 	"recall-app/cmd/api"
 
+	firebase "firebase.google.com/go/v4"
+	"firebase.google.com/go/v4/messaging"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 	"github.com/robfig/cron"
+	"google.golang.org/api/option"
 )
 
 var (
@@ -134,23 +137,29 @@ func flagSetup(dbUrl string, tokenDeets map[string]string, smtpDeets map[string]
 	return &cfg
 }
 
-func cronjobs(log *logger.Logger, app *api.Application) {
+func cronjobs(app *api.Application) {
 	c := cron.New()
 
-	// Run every day at 2 AM
-	c.AddFunc("0 2 * * *", func() {
-		log.Info("Running FDA recall sync...", nil)
-		// err := sync.RunSync(app)
-		// if err != nil {
-		// 	log.Error(fmt.Sprintf("Sync failed: %v", err), nil)
-		// }
+	// Run every sat at 12noon
+	c.AddFunc("0 12 * * 6", func() {
+		app.CheckAllProductRecall()
 	})
-
-	log.Info("Starting scheduler...", nil)
+	app.Logger.Info("Starting scheduler...", nil)
 	c.Start()
+}
 
-	// err := sync.RunSync(app)
-	// if err != nil {
-	// 	log.Error(fmt.Sprintf("Sync failed: %v", err), nil)
-	// }
+func FirebaseInit(ctx context.Context) (*messaging.Client, error) {
+	// Use the path to your service account credential json file
+	opt := option.WithCredentialsFile("firebase_service.json")
+	// Create a new firebase app
+	app, err := firebase.NewApp(ctx, nil, opt)
+	if err != nil {
+		return nil, err
+	}
+	// Get the FCM object
+	fcmClient, err := app.Messaging(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return fcmClient, nil
 }

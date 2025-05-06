@@ -2,11 +2,9 @@ package repo
 
 import (
 	"context"
-	"errors"
 	"recall-app/internal/domain"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -15,9 +13,9 @@ type RecallsModel struct {
 }
 
 func (m RecallsModel) Insert(recall *domain.Recalls) error {
-	query := ` INSERT INTO fda_recalls (id, user_id, date_purchased) 
-				VALUES ($1, $2, $3)`
-	args := []any{recall.Id, recall.UserId, recall.Date}
+	query := ` INSERT INTO fda_recalls (id, user_id, fda_description, recall_id, date_recalled) 
+				VALUES ($1, $2, $3, $4, $5)`
+	args := []any{recall.Id, recall.UserId, recall.FdaDescription, recall.RecallId, recall.Date}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	_, err := m.DB.Exec(ctx, query, args...)
@@ -27,26 +25,35 @@ func (m RecallsModel) Insert(recall *domain.Recalls) error {
 	return nil
 }
 
-func (m RecallsModel) GetRecalls(user_id string) (*domain.Recalls, error) {
-	query := ` SELECT id, user_id, date_purchased FROM fda_recalls
+func (m RecallsModel) GetRecalls(user_id string) ([]*domain.Recalls, error) {
+	query := ` SELECT id, user_id, fda_description, recall_id, date_recalled FROM fda_recalls
 	WHERE user_id = $1`
-	var recall domain.Recalls
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	err := m.DB.QueryRow(ctx, query, user_id).Scan(
-		&recall.Id,
-		&recall.UserId,
-		&recall.Date)
-
+	rows, err := m.DB.Query(ctx, query, user_id)
 	if err != nil {
-		switch {
-		case errors.Is(err, pgx.ErrNoRows):
-			return nil, ErrRecordNotFound
-		default:
+		return nil, err
+	}
+	defer rows.Close()
+	recalls := []*domain.Recalls{}
+	for rows.Next() {
+		var recall domain.Recalls
+		err := rows.Scan(
+			&recall.Id,
+			&recall.UserId,
+			&recall.FdaDescription,
+			&recall.RecallId,
+			&recall.Date)
+
+		if err != nil {
 			return nil, err
 		}
+		recalls = append(recalls, &recall)
 	}
-	return &recall, nil
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	return recalls, nil
 }
 
 func (m RecallsModel) DeleteRecall(id, userID string) error {
