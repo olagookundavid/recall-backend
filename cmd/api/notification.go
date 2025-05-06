@@ -17,6 +17,10 @@ func (app *Application) CreateNotificationHandler(c *gin.Context) {
 		return
 	}
 
+	if req.Token == "" {
+		app.badResponse(c, "Token cannot be empty")
+		return
+	}
 	tokenPayload, err := getTokenPayloadFromContext(c)
 	if err != nil {
 		app.ServerErrorResponse(c, err)
