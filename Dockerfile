@@ -34,6 +34,8 @@ COPY --from=builder /app/${BINARY_NAME} .
 # Optional: copy .env (if required)
 COPY .env . 
 
+COPY recall-king-firebase-adminsdk-key.json .
+
 USER appuser
 
 EXPOSE 8080

@@ -53,17 +53,18 @@ func main() {
 		log.Fatal(fmt.Errorf("cannot create token maker: %w", err).Error(), nil)
 	}
 
-	fcmClient, err := FirebaseInit(ctx)
-	if err != nil {
-		log.Fatal(fmt.Errorf("cannot firebase client: %w", err).Error(), nil)
-	}
+	// fcmClient, err := FirebaseInit(ctx, log)
+	// if err != nil {
+	// 	log.Fatal(fmt.Errorf("cannot firebase client: %w", err).Error(), nil)
+	// }
+	// println("done")
 
 	app := &api.Application{
 		Wg:              sync.WaitGroup{},
 		Config:          *cfg,
 		Logger:          log,
 		TokenMaker:      tokenMaker,
-		MessagingClient: fcmClient,
+		MessagingClient: nil,
 		Mailer: mailer.New(
 			cfg.Smtp.Host,
 			cfg.Smtp.Port,

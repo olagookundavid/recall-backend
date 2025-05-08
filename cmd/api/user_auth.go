@@ -7,10 +7,12 @@ import (
 	"net/http"
 	"time"
 
+	"firebase.google.com/go/v4/messaging"
 	"github.com/gin-gonic/gin"
 
 	"recall-app/cmd/dto"
 	"recall-app/internal/domain"
+	"recall-app/internal/notification"
 	"recall-app/internal/repo"
 	"recall-app/internal/token"
 )
@@ -32,6 +34,14 @@ func (app *Application) Test(c *gin.Context) {
 	// 		app.Logger.Error(err.Error(), nil)
 	// 	}
 	// })
+
+	// go func() {
+	notification.SendNotification(app.MessagingClient, c, []string{""}, "", messaging.Notification{
+		Title: "Test",
+		Body:  "Test",
+		// ImageURL: "",
+	})
+	// }()
 }
 
 func (app *Application) GetProfileHandler(c *gin.Context) {

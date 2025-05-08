@@ -80,7 +80,7 @@ func (app *Application) CreateProductHandler(c *gin.Context) {
 			productId:         id,
 			category:          product.Category,
 			date:              "",
-			url:               "",
+			url:               product.Url,
 			notificationToken: "",
 		}
 		_, err := app.CheckProductRecall(checkProductRecallInput)

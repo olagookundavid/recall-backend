@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"time"
@@ -148,9 +149,13 @@ func cronjobs(app *api.Application) {
 	c.Start()
 }
 
-func FirebaseInit(ctx context.Context) (*messaging.Client, error) {
+func FirebaseInit(ctx context.Context, log *logger.Logger) (*messaging.Client, error) {
+	path, err := filepath.Abs("recall-king-firebase-adminsdk-key.json")
+	if err != nil {
+		log.Fatal("Cannot get firebase json path", nil)
+	}
 	// Use the path to your service account credential json file
-	opt := option.WithCredentialsFile("firebase_service.json")
+	opt := option.WithCredentialsFile(path)
 	// Create a new firebase app
 	app, err := firebase.NewApp(ctx, nil, opt)
 	if err != nil {
@@ -161,5 +166,6 @@ func FirebaseInit(ctx context.Context) (*messaging.Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	println("Client initailized")
 	return fcmClient, nil
 }

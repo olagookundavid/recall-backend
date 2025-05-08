@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	httpclient "recall-app/internal/client"
+	"time"
 
 	"recall-app/cmd/dto"
 
@@ -24,7 +25,19 @@ func GetProductFromQrCode(c *gin.Context, id string) (*dto.QrProductResponse, er
 	QrProduct := &dto.QrProductResponse{}
 
 	path := fmt.Sprintf("/v0/product/%s.json", id)
-	err := client.Do(c, "GET", path, nil, QrProduct, nil)
+	var err error
+
+	// app.background(func() {
+	const maxRetries = 3
+	const retryDelay = 1 * time.Second
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		err = client.Do(c, "GET", path, nil, QrProduct, nil)
+		if err == nil {
+			break
+		}
+		time.Sleep(retryDelay)
+	}
 	if err != nil {
 		return nil, err
 	}
